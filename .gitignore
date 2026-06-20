@@ -1,0 +1,10 @@
+# --- OS・エディタ関連（今必要なもの） ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Nix関連（最初の実行時にすぐ生成されるもの） ---
+result
+result-*
+.direnv/
