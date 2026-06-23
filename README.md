@@ -106,23 +106,114 @@ Nixパッケージマネージャーを一時環境に展開しますが、
 
 ### 自動生成された``hardware-configuration.nix``の扱い
 
+#### 問題点
+
 ``nixos-generate-config``コマンドで実行中のマシンの設定が``/mnt/etc/nixos``ディレクトリ
 
 に生成されますが、これを``flakes``に組み込む際のフローをどうするか？が問題となりました。
 
-``flakes.nix``への初回定義時には、同ファイルに各``hoge.nix``ファイルをどう構成するか？を記述する必要がありますが、
+#### そもそもなぜ本ファイルが必要か？
 
-その時点ではマシン上で実行されていないため``hardware-configuration.nix``は理論上存在し得ません。
+その答えは実際の``hardware-configuration.nix``をリネームして配置された``micropc.nix``にあります。
 
-そのため、実行時に生成されたものをマシン名にリネームし、差し込む、という方法にしてみました。
+実際に見てみます。
 
-また、起動ドライブのパスが同ファイルに記述されますが、その定義方法は``by-uuid``となっています。
+~~~bash
 
-これはインストールごとに変動する値のため、パーティション設定の宣言との整合性も問題となります。
+cat /mnt/etc/nixos/hardware-configuration.nix
 
-この点、メインの設定である``core.nix``に``lib.mkForce``として``by-partlabel``指定を優先させ、元の``by-uuid``設定を強制的に無効化することで対応しました。
+~~~
+
+~~~
+
+{
+...(中略)...
+boot.initrd.availableKernelModules = [ "ahci" "xhci_pci" "usb_storage" "usbhid" "sd_mod" "sdhci_pci" ]
+boot.initrd.kernelModules = [ ];
+boot.kernelModules = [ "kvm-intel" ];
+boot.extraModulePackages = [ ];
+
+...(中略)...
+
+hardware.cpu.intel.updateMicrocode = lib.mkDefault　config.hardware.enableRedistributableFirmware;
+}
+
+~~~
+
+示したコードの上の固まりにカーネルモジュール関連の指定(仮想環境構築に関連する``kvm-intel``含む)、
+
+下の固まりにCPUマイクロコードの指定があります。
+
+上記では``boot.initrd.availableKernelModules``のみが明示的に指定され、実際に組み込まれるように指定されているものはありません(``boot.initrd.kernelModules = [ ];``)。
+
+しかし、セキュリティ的な観点からはCPUマイクロコードの適用は有用であり、外すべきでなく、
+
+また、CPUマイクロコードの指定はマシンのCPUメーカーによって変わる(といってもx86-64ならintelかAMDの2択ではありますが)ため、
+
+これからAMDチップ搭載PC(GPD Win Miniなど)の設定を追加して``core.nix``を使い回すことを前提にすると、
+
+変動しうる本設定を共通設定``core.nix``に書き込むのは適切ではないはずです。
+
+そのため、自動判定されて生成された``hardware-configuration.nix``をflakesに取り込む必要があると判断しました。
+
+#### パーティション・ファイルシステム設定の矛盾の解消
+
+しかしながら、ここで同時に、同じく自動生成で書き込まれる一節、ファイルシステムの設定と、スクリプトで設定した``parted``との自動化コマンドとの競合(不整合)が発生します。
+
+この部分です。
+
+~~~bash
+
+cat /mnt/etc/nixos/hardware-configuration.nix
+
+~~~
+
+~~~
+
+{
+
+...
+
+fileSystems."/" =
+    { device = "/dev/disk/by-uuid/34565fa4-04a5-4629-a5bd-1f7c10bac374";
+      fsType = "ext4";
+    };
+
+  fileSystems."/boot" =
+    { device = "/dev/disk/by-uuid/B289-1484";
+      fsType = "vfat";
+      options = [ "fmask=0077" "dmask=0077" ];
+    };
+
+...
+
+}
+
+~~~
+
+起動ドライブのパスが同ファイルに記述されますが、その定義方法は``by-uuid``となっています。
+
+これはインストールごとに変動する値のため、パーティション設定の宣言との整合性が問題となります。
+
+この点、メインの設定である``core.nix``内に、``lib.mkForce``として``by-partlabel``指定を記述、これを優先させ、元の``by-uuid``設定を強制的に無効化することで対応しました。
 
 このようにすることで、スクリプト内にあるpartedの設定と整合し、起動することが出来ます。
+
+この``hardware-configuration.nix``の設定をそのまま使えないのか？という検討も行いました。
+
+この点、スクリプト内の``parted``の設定を、``if``文などで、確実に一致させるために生成結果を呼んで書き換えるのは、代入ミスなどの危険もあり、生成結果の安定性の観点からは、推奨はされないのではないか、と考えます。
+
+また、デバイス名(``/dev/sda1``など)での指定は、インストール後、ドライブの追加等をした場合、起動時のデバイス名の割り当てタイミングによりずれる可能性があるので、再現性の面からもあまり望ましくない、とも思えます。
+
+そのため、``by-partlabel``で固定する方法を選択しました。
+
+#### 初回実行時の「ファイル不在」どうする？
+
+``flakes.nix``への初回定義時には、同ファイルに各``hoge.nix``ファイルをどう構成するか？を記述する必要がありますが、
+
+その時点ではインストール対象のマシン上で実行されていないため、flakesリポジトリ内に``hardware-configuration.nix``は理論上存在し得ません。
+
+そのため、実行時に生成されたものをマシン名にリネームし、差し込む、という方法にしてみました。
 
 ### flakes特有の仕様(``git add``し忘れるとシステム構築に反映されない)への対処
 
@@ -163,3 +254,12 @@ iwctl station wlan0 connect <YOUR_SSID>
 - サウンド管理: PulseAudio
 
 ほかシステムアプリは、``core.nix``の通りです。
+
+## 参考文献まとめ
+
+https://wiki.nixos.org/wiki/Nixos-generate-config
+
+https://qiita.com/Taira0222/items/90a6b00225d5f6ecffb1
+
+https://qiita.com/ko1nksm/items/19d300c4cb812b0fde1e
+
