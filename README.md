@@ -257,6 +257,8 @@ iwctl station wlan0 connect <YOUR_SSID>
 
 ## 参考文献まとめ
 
+https://nixos.org/manual/nixos/stable/#sec-installing-from-other-distro
+
 https://wiki.nixos.org/wiki/Nixos-generate-config
 
 https://qiita.com/Taira0222/items/90a6b00225d5f6ecffb1
