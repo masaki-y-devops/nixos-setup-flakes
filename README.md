@@ -207,6 +207,8 @@ fileSystems."/" =
 
 そのため、``by-partlabel``で固定する方法を選択しました。
 
+[disko](https://github.com/nix-community/disko)で、パーティション設定もシステム定義に取り込むことで、この問題は解決しそうです(KVM,マイクロコード設定は別途定義する必要はありそうですが)。
+
 #### 初回実行時の「ファイル不在」どうする？
 
 ``flakes.nix``への初回定義時には、同ファイルに各``hoge.nix``ファイルをどう構成するか？を記述する必要がありますが、
@@ -254,6 +256,10 @@ iwctl station wlan0 connect <YOUR_SSID>
 - サウンド管理: PulseAudio
 
 ほかシステムアプリは、``core.nix``の通りです。
+
+## 今後の予定
+
+- [disko](https://github.com/nix-community/disko) の統合の可能性を探ってみる
 
 ## 参考文献まとめ
 
