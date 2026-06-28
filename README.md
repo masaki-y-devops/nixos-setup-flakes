@@ -42,20 +42,6 @@ nix-channel時代には、Swayの設定等のdotfilesをヒアドキュメント
 
 ~~~bash
 
-curl -fsSL https://github.com/masaki-y-devops/nixos-setup-flakes/raw/refs/heads/main/install.sh | bash -s micropc mint
-
-~~~
-
-~~~bash
-
-bash <(curl -fsSL https://github.com/masaki-y-devops/nixos-setup-flakes/raw/refs/heads/main/install.sh) micropc mint
-
-~~~
-
-または、
-
-~~~bash
-
 git clone https://github.com/masaki-y-devops/nixos-setup-flakes.git
 
 cd ./nixos-setup-flakes
