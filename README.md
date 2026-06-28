@@ -261,6 +261,8 @@ iwctl station wlan0 connect <YOUR_SSID>
 
 - [disko](https://github.com/nix-community/disko) の統合の可能性を探ってみる
 
+- 現在、``core.nix``に散在している個人設定のほとんどを``userpref.nix``などとして完全に分離し、より汎用的な設計にしてみる
+
 ## 参考文献まとめ
 
 https://nixos.org/manual/nixos/stable/#sec-installing-from-other-distro
